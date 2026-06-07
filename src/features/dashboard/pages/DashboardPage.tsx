@@ -162,14 +162,15 @@ export function DashboardPage() {
         <div className="grid gap-6 p-6 lg:grid-cols-[1fr_360px] lg:p-8">
           <div>
             <p className="text-sm font-medium text-brand-700">
-              PAUD Growth Trajectory
+              ARUNA Curve
             </p>
             <h1 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Growth monitoring overview
+              Child Growth & Development Trajectory
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-              Track child growth status, detect nutrition risks early, and keep
-              PAUD health teams aligned on follow-up priorities.
+              Adaptive Risk Understanding for Nurturing Assessment helps PAUD
+              health teams track child growth status, detect nutrition risks
+              early, and stay aligned on follow-up priorities.
             </p>
           </div>
 

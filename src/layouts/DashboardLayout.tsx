@@ -93,7 +93,7 @@ export function DashboardLayout() {
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                PAUD Growth Trajectory
+                ARUNA Curve
               </p>
               <h2 className="mt-1 truncate text-lg font-semibold tracking-tight">
                 Dashboard
@@ -106,7 +106,7 @@ export function DashboardLayout() {
                   {user?.name ?? 'PAUD Admin'}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {user?.email ?? 'Growth monitoring team'}
+                  {user?.email ?? 'ARUNA Curve team'}
                 </p>
               </div>
               <button
@@ -142,15 +142,18 @@ function SidebarContent({ navigation }: { navigation: NavigationItem[] }) {
       <div>
         <div className="flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-            GT
+            AC
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-              PAUD
+              Child Growth
             </p>
             <h1 className="text-lg font-semibold tracking-tight">
-              Growth Trajectory
+              ARUNA Curve
             </h1>
+            <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
+              Adaptive Risk Understanding for Nurturing Assessment
+            </p>
           </div>
         </div>
       </div>

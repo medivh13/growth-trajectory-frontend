@@ -73,15 +73,18 @@ export function LoginPage() {
           <div className="relative flex h-full flex-col justify-between p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">
-                Growth Trajectory Monitor
+                ARUNA Curve
               </p>
               <h1 className="mt-8 max-w-xl text-5xl font-semibold leading-tight tracking-tight">
-                Sign in to Growth Trajectory Monitor
+                Child Growth & Development Trajectory
               </h1>
+              <p className="mt-5 max-w-xl text-sm leading-6 text-slate-300">
+                Adaptive Risk Understanding for Nurturing Assessment
+              </p>
             </div>
 
             <div className="grid max-w-xl grid-cols-3 gap-3">
-              {['Vitals', 'Devices', 'Alerts'].map((item) => (
+              {['Growth', 'Risk', 'Follow-up'].map((item) => (
                 <div
                   key={item}
                   className="rounded-lg border border-white/10 bg-white/10 p-4 backdrop-blur"
@@ -100,11 +103,14 @@ export function LoginPage() {
           <div className="w-full max-w-md">
             <div className="mb-10 lg:hidden">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">
-                Health Monitor
+                ARUNA Curve
               </p>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-                Clinical Ops
+                Child Growth & Development Trajectory
               </h1>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Adaptive Risk Understanding for Nurturing Assessment
+              </p>
             </div>
 
             <div className="rounded-lg border border-white/10 bg-white/[0.07] p-6 shadow-2xl shadow-black/30 backdrop-blur sm:p-8">
@@ -116,7 +122,7 @@ export function LoginPage() {
                   Log in
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Use your account credentials to access the monitoring
+                  Use your account credentials to access the ARUNA Curve
                   dashboard.
                 </p>
               </div>
