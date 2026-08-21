@@ -41,6 +41,18 @@ export async function getChildren(params?: { paud_id?: number | null }) {
   return Array.isArray(response.data?.data) ? response.data.data : []
 }
 
+export async function deleteChild(
+  childID: number,
+  params?: { paud_id?: number | null },
+) {
+  const response = await httpClient.delete(
+    `/growth-trajectory/children/${childID}`,
+    { params: { paud_id: params?.paud_id ?? undefined } },
+  )
+
+  return response.data
+}
+
 export type CreateMeasurementPayload = {
   child_id: number
   measurement_date: string
@@ -83,6 +95,18 @@ export async function createMeasurement(payload: CreateMeasurementPayload) {
     '/growth-trajectory/measurements',
     body,
     { params: { paud_id: paudID ?? undefined } },
+  )
+
+  return response.data
+}
+
+export async function deleteMeasurement(
+  measurementID: number,
+  params?: { paud_id?: number | null },
+) {
+  const response = await httpClient.delete(
+    `/growth-trajectory/measurements/${measurementID}`,
+    { params: { paud_id: params?.paud_id ?? undefined } },
   )
 
   return response.data

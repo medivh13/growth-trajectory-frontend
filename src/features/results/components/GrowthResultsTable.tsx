@@ -6,13 +6,19 @@ import type { GrowthResult } from '../api/resultsApi'
 
 type GrowthResultsTableProps = {
   results: GrowthResult[]
+  paudID?: number | null
   onSaveNote: (measurementID: number, notes: string) => Promise<void>
+  onRequestDelete: (result: GrowthResult) => void
 }
 
 export function GrowthResultsTable({
   results,
+  paudID,
   onSaveNote,
+  onRequestDelete,
 }: GrowthResultsTableProps) {
+  const query = paudID ? `?paud_id=${paudID}` : ''
+
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -45,7 +51,7 @@ export function GrowthResultsTable({
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {results.map((result) => (
-              <tr key={`${result.ChildID}-${result.MeasurementDate}`}>
+              <tr key={result.MeasurementID}>
                 <td className="px-4 py-4">
                   <p className="text-sm font-semibold text-slate-950">
                     {result.FullName}
@@ -100,17 +106,24 @@ export function GrowthResultsTable({
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      to={`/dashboard/children/${result.ChildID}/measurements`}
+                      to={`/dashboard/children/${result.ChildID}/measurements${query}`}
                       className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       View History
                     </Link>
                     <Link
-                      to={`/dashboard/children/${result.ChildID}/measurements/new`}
+                      to={`/dashboard/children/${result.ChildID}/measurements/new${query}`}
                       className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
                     >
                       Add Measurement
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => onRequestDelete(result)}
+                      className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>

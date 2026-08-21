@@ -3,9 +3,13 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { getPauds, type Paud } from '../../admin/api/adminApi'
 import { useAuthStore } from '../../auth/store/authStore'
+import {
+  deleteMeasurement,
+  updateMeasurementNote,
+} from '../../children/api/childrenApi'
+import { ConfirmDialog } from '../../../shared/components/ConfirmDialog'
 import { GrowthResultsTable } from '../components/GrowthResultsTable'
 import { getGrowthResults, type GrowthResult } from '../api/resultsApi'
-import { updateMeasurementNote } from '../../children/api/childrenApi'
 
 const months = [
   { label: 'January', value: 0 },
@@ -35,6 +39,10 @@ export function GrowthResultsPage() {
   const [selectedPaudId, setSelectedPaudId] = useState<number | null>(null)
   const [results, setResults] = useState<GrowthResult[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [resultToDelete, setResultToDelete] = useState<GrowthResult | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const period = useMemo(
@@ -74,6 +82,7 @@ export function GrowthResultsPage() {
 
         if (isMounted) {
           setResults(normalizeResults(data))
+          setSuccessMessage(null)
         }
       } catch (caughtError) {
         if (isMounted) {
@@ -102,6 +111,29 @@ export function GrowthResultsPage() {
     })
     const data = await getGrowthResults(period)
     setResults(normalizeResults(data))
+  }
+
+  async function handleConfirmDeleteMeasurement() {
+    if (!resultToDelete) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteMeasurement(resultToDelete.MeasurementID, {
+        paud_id: period.paud_id,
+      })
+      const data = await getGrowthResults(period)
+      setResults(normalizeResults(data))
+      setSuccessMessage('Measurement was deleted.')
+      setResultToDelete(null)
+    } catch (caughtError) {
+      setDeleteError(getDeleteMeasurementErrorMessage(caughtError))
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -200,13 +232,40 @@ export function GrowthResultsPage() {
         </p>
       ) : null}
 
+      {successMessage ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {successMessage}
+        </p>
+      ) : null}
+
       {isLoading ? (
         <LoadingState />
       ) : results.length > 0 ? (
-        <GrowthResultsTable results={results} onSaveNote={handleSaveNote} />
+        <GrowthResultsTable
+          results={results}
+          paudID={period.paud_id}
+          onSaveNote={handleSaveNote}
+          onRequestDelete={setResultToDelete}
+        />
       ) : (
         <EmptyState selectedPeriodLabel={selectedPeriodLabel} />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(resultToDelete)}
+        title="Delete this measurement?"
+        description="Deleting this measurement will remove the calculated result for this date."
+        confirmLabel="Delete measurement"
+        isSubmitting={isDeleting}
+        error={deleteError}
+        onConfirm={handleConfirmDeleteMeasurement}
+        onClose={() => {
+          if (!isDeleting) {
+            setResultToDelete(null)
+            setDeleteError(null)
+          }
+        }}
+      />
     </div>
   )
 }
@@ -304,6 +363,24 @@ function getResultsErrorMessage(error: unknown) {
   }
 
   return 'Unable to load growth results. Please try again shortly.'
+}
+
+function getDeleteMeasurementErrorMessage(error: unknown) {
+  if (isAxiosError(error)) {
+    if (error.response?.status === 401) {
+      return 'Your session has expired. Please sign in again.'
+    }
+
+    if (
+      error.response?.status === 400 ||
+      error.response?.status === 404 ||
+      error.response?.status === 422
+    ) {
+      return 'This measurement could not be deleted. It may no longer exist or may belong to another PAUD.'
+    }
+  }
+
+  return 'Unable to delete measurement. Please try again shortly.'
 }
 
 const dateInputClassName =

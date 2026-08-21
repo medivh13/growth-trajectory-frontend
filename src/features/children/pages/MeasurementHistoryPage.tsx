@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
+  deleteMeasurement,
   getChildMeasurementHistory,
   updateMeasurementNote,
   type ChildListItem,
@@ -10,6 +11,7 @@ import {
 } from '../api/childrenApi'
 import { GrowthTrendChart } from '../components/GrowthTrendChart'
 import { MeasurementNoteEditor } from '../components/MeasurementNoteEditor'
+import { ConfirmDialog } from '../../../shared/components/ConfirmDialog'
 import { StatusBadge } from '../../results/components/StatusBadge'
 
 export function MeasurementHistoryPage() {
@@ -22,6 +24,11 @@ export function MeasurementHistoryPage() {
   const [child, setChild] = useState<ChildListItem | null>(null)
   const [history, setHistory] = useState<MeasurementHistory[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [measurementToDelete, setMeasurementToDelete] =
+    useState<MeasurementHistory | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const progression = useMemo(() => {
@@ -60,6 +67,7 @@ export function MeasurementHistoryPage() {
         if (isMounted) {
           setChild(data.child)
           setHistory(data.measurements)
+          setSuccessMessage(null)
         }
       } catch (caughtError) {
         if (isMounted) {
@@ -92,6 +100,32 @@ export function MeasurementHistoryPage() {
     })
     setChild(data.child)
     setHistory(data.measurements)
+  }
+
+  async function handleConfirmDeleteMeasurement() {
+    if (!measurementToDelete) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteMeasurement(measurementToDelete.measurement_id, {
+        paud_id: paudID ? Number(paudID) : undefined,
+      })
+      const data = await getChildMeasurementHistory(parsedChildID, {
+        paud_id: paudID ? Number(paudID) : undefined,
+      })
+      setChild(data.child)
+      setHistory(data.measurements)
+      setSuccessMessage('Measurement was deleted.')
+      setMeasurementToDelete(null)
+    } catch (caughtError) {
+      setDeleteError(getDeleteMeasurementErrorMessage(caughtError))
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -144,19 +178,53 @@ export function MeasurementHistoryPage() {
         </p>
       ) : null}
 
+      {successMessage ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {successMessage}
+        </p>
+      ) : null}
+
       {isLoading ? (
         <LoadingState />
       ) : history.length > 0 ? (
         <>
           <GrowthTrendChart history={history} />
           <section className="grid gap-6 xl:grid-cols-[360px_1fr]">
-        <Timeline history={history} onSaveNote={handleSaveNote} />
-        <HistoryTable history={history} onSaveNote={handleSaveNote} />
+            <Timeline
+              history={history}
+              onSaveNote={handleSaveNote}
+              onRequestDelete={setMeasurementToDelete}
+            />
+            <HistoryTable
+              history={history}
+              onSaveNote={handleSaveNote}
+              onRequestDelete={setMeasurementToDelete}
+            />
           </section>
         </>
       ) : (
-        <EmptyState childID={parsedChildID} isChildIDValid={isChildIDValid} />
+        <EmptyState
+          childID={parsedChildID}
+          isChildIDValid={isChildIDValid}
+          paudQuery={paudQuery}
+        />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(measurementToDelete)}
+        title="Delete this measurement?"
+        description="Deleting this measurement will remove the calculated result for this date."
+        confirmLabel="Delete measurement"
+        isSubmitting={isDeleting}
+        error={deleteError}
+        onConfirm={handleConfirmDeleteMeasurement}
+        onClose={() => {
+          if (!isDeleting) {
+            setMeasurementToDelete(null)
+            setDeleteError(null)
+          }
+        }}
+      />
     </div>
   )
 }
@@ -164,9 +232,11 @@ export function MeasurementHistoryPage() {
 function Timeline({
   history,
   onSaveNote,
+  onRequestDelete,
 }: {
   history: MeasurementHistory[]
   onSaveNote: (measurementID: number, notes: string) => Promise<void>
+  onRequestDelete: (measurement: MeasurementHistory) => void
 }) {
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -194,11 +264,20 @@ function Timeline({
               </p>
             )}
             <div className="mt-2">
-              <MeasurementNoteEditor
-                notes={item.notes}
-                isProminent={needsFollowUp(item)}
-                onSave={(notes) => onSaveNote(item.measurement_id, notes)}
-              />
+              <div className="flex flex-wrap gap-2">
+                <MeasurementNoteEditor
+                  notes={item.notes}
+                  isProminent={needsFollowUp(item)}
+                  onSave={(notes) => onSaveNote(item.measurement_id, notes)}
+                />
+                <button
+                  type="button"
+                  onClick={() => onRequestDelete(item)}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -210,9 +289,11 @@ function Timeline({
 function HistoryTable({
   history,
   onSaveNote,
+  onRequestDelete,
 }: {
   history: MeasurementHistory[]
   onSaveNote: (measurementID: number, notes: string) => Promise<void>
+  onRequestDelete: (measurement: MeasurementHistory) => void
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -220,7 +301,7 @@ function HistoryTable({
         <table className="min-w-[820px] divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              {['Date', 'Weight', 'Height', 'BMI', 'Notes', 'WFA', 'LHFA', 'WFH'].map(
+              {['Date', 'Weight', 'Height', 'BMI', 'Notes', 'WFA', 'LHFA', 'WFH', 'Actions'].map(
                 (heading) => (
                   <th
                     key={heading}
@@ -267,6 +348,15 @@ function HistoryTable({
                 <td className="px-4 py-4">
                   <StatusBadge status={item.wfh_status} />
                 </td>
+                <td className="px-4 py-4">
+                  <button
+                    type="button"
+                    onClick={() => onRequestDelete(item)}
+                    className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -309,9 +399,11 @@ function LoadingState() {
 function EmptyState({
   childID,
   isChildIDValid,
+  paudQuery,
 }: {
   childID: number
   isChildIDValid: boolean
+  paudQuery: string
 }) {
   return (
     <section className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
@@ -324,7 +416,7 @@ function EmptyState({
       </p>
       {isChildIDValid ? (
         <Link
-          to={`/dashboard/children/${childID}/measurements/new`}
+          to={`/dashboard/children/${childID}/measurements/new${paudQuery}`}
           className="mt-6 inline-flex rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
         >
           Add measurement
@@ -366,4 +458,22 @@ function getHistoryErrorMessage(error: unknown) {
   }
 
   return 'Unable to load measurement history. Please try again shortly.'
+}
+
+function getDeleteMeasurementErrorMessage(error: unknown) {
+  if (isAxiosError(error)) {
+    if (error.response?.status === 401) {
+      return 'Your session has expired. Please sign in again.'
+    }
+
+    if (
+      error.response?.status === 400 ||
+      error.response?.status === 404 ||
+      error.response?.status === 422
+    ) {
+      return 'This measurement could not be deleted. It may no longer exist or may belong to another PAUD.'
+    }
+  }
+
+  return 'Unable to delete measurement. Please try again shortly.'
 }

@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 
 import { getPauds, type Paud } from '../../admin/api/adminApi'
 import { useAuthStore } from '../../auth/store/authStore'
-import { getChildren, type ChildListItem } from '../api/childrenApi'
+import { ConfirmDialog } from '../../../shared/components/ConfirmDialog'
+import { deleteChild, getChildren, type ChildListItem } from '../api/childrenApi'
 
 export function ChildListPage() {
   const isSuperAdmin = useAuthStore((state) => state.user?.role === 'super_admin')
@@ -14,6 +15,10 @@ export function ChildListPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoadingPauds, setIsLoadingPauds] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [childToDelete, setChildToDelete] = useState<ChildListItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const filteredChildren = useMemo(() => {
@@ -78,6 +83,7 @@ export function ChildListPage() {
 
         if (isMounted) {
           setChildren(data)
+          setSuccessMessage(null)
         }
       } catch (caughtError) {
         if (isMounted) {
@@ -97,6 +103,30 @@ export function ChildListPage() {
       isMounted = false
     }
   }, [isSuperAdmin, selectedPaudId])
+
+  async function handleConfirmDeleteChild() {
+    if (!childToDelete) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteChild(childToDelete.id, {
+        paud_id: isSuperAdmin ? selectedPaudId : undefined,
+      })
+      setChildren((current) =>
+        current.filter((child) => child.id !== childToDelete.id),
+      )
+      setSuccessMessage(`${childToDelete.full_name} was deleted.`)
+      setChildToDelete(null)
+    } catch (caughtError) {
+      setDeleteError(getDeleteChildErrorMessage(caughtError))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -174,12 +204,26 @@ export function ChildListPage() {
         </p>
       ) : null}
 
+      {successMessage ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {successMessage}
+        </p>
+      ) : null}
+
       {isLoading || isLoadingPauds ? (
         <LoadingState />
       ) : filteredChildren.length > 0 ? (
         <>
-          <DesktopChildrenTable children={filteredChildren} paudID={selectedPaudId} />
-          <MobileChildrenList children={filteredChildren} paudID={selectedPaudId} />
+          <DesktopChildrenTable
+            children={filteredChildren}
+            paudID={selectedPaudId}
+            onRequestDelete={setChildToDelete}
+          />
+          <MobileChildrenList
+            children={filteredChildren}
+            paudID={selectedPaudId}
+            onRequestDelete={setChildToDelete}
+          />
         </>
       ) : (
         <EmptyState
@@ -187,6 +231,22 @@ export function ChildListPage() {
           isSuperAdmin={isSuperAdmin}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(childToDelete)}
+        title={`Delete ${childToDelete?.full_name ?? 'child'}?`}
+        description="Deleting this child will also remove all measurement history."
+        confirmLabel="Delete child"
+        isSubmitting={isDeleting}
+        error={deleteError}
+        onConfirm={handleConfirmDeleteChild}
+        onClose={() => {
+          if (!isDeleting) {
+            setChildToDelete(null)
+            setDeleteError(null)
+          }
+        }}
+      />
     </div>
   )
 }
@@ -194,9 +254,11 @@ export function ChildListPage() {
 function DesktopChildrenTable({
   children,
   paudID,
+  onRequestDelete,
 }: {
   children: ChildListItem[]
   paudID: number | null
+  onRequestDelete: (child: ChildListItem) => void
 }) {
   return (
     <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
@@ -231,7 +293,11 @@ function DesktopChildrenTable({
                   {formatDate(child.date_of_birth)}
                 </td>
                 <td className="px-4 py-4">
-                  <ChildActions childID={child.id} paudID={paudID} />
+                  <ChildActions
+                    childID={child.id}
+                    paudID={paudID}
+                    onDelete={() => onRequestDelete(child)}
+                  />
                 </td>
               </tr>
             ))}
@@ -245,9 +311,11 @@ function DesktopChildrenTable({
 function MobileChildrenList({
   children,
   paudID,
+  onRequestDelete,
 }: {
   children: ChildListItem[]
   paudID: number | null
+  onRequestDelete: (child: ChildListItem) => void
 }) {
   return (
     <div className="space-y-3 md:hidden">
@@ -271,7 +339,11 @@ function MobileChildrenList({
             Born {formatDate(child.date_of_birth)}
           </p>
           <div className="mt-4">
-            <ChildActions childID={child.id} paudID={paudID} />
+            <ChildActions
+              childID={child.id}
+              paudID={paudID}
+              onDelete={() => onRequestDelete(child)}
+            />
           </div>
         </article>
       ))}
@@ -279,7 +351,15 @@ function MobileChildrenList({
   )
 }
 
-function ChildActions({ childID, paudID }: { childID: number; paudID: number | null }) {
+function ChildActions({
+  childID,
+  paudID,
+  onDelete,
+}: {
+  childID: number
+  paudID: number | null
+  onDelete: () => void
+}) {
   const query = paudID ? `?paud_id=${paudID}` : ''
 
   return (
@@ -296,6 +376,13 @@ function ChildActions({ childID, paudID }: { childID: number; paudID: number | n
       >
         Add Measurement
       </Link>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+      >
+        Delete
+      </button>
     </div>
   )
 }
@@ -377,4 +464,22 @@ function getChildrenErrorMessage(error: unknown) {
   }
 
   return 'Unable to load children. Please try again shortly.'
+}
+
+function getDeleteChildErrorMessage(error: unknown) {
+  if (isAxiosError(error)) {
+    if (error.response?.status === 401) {
+      return 'Your session has expired. Please sign in again.'
+    }
+
+    if (
+      error.response?.status === 400 ||
+      error.response?.status === 404 ||
+      error.response?.status === 422
+    ) {
+      return 'This child could not be deleted. It may no longer exist or may belong to another PAUD.'
+    }
+  }
+
+  return 'Unable to delete child. Please try again shortly.'
 }
