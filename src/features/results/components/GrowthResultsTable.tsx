@@ -22,7 +22,7 @@ export function GrowthResultsTable({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[1040px] divide-y divide-slate-200">
+        <table className="min-w-[1240px] divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
               {[
@@ -31,12 +31,14 @@ export function GrowthResultsTable({
                 'Measurement',
                 'Weight',
                 'Height',
+                'Head Circ.',
                 'BMI',
                 'Notes',
                 'WFA',
                 'LHFA',
                 'WFH',
                 'BMI Status',
+                'HCFA',
                 'Actions',
               ].map((heading) => (
                 <th
@@ -72,6 +74,9 @@ export function GrowthResultsTable({
                 <td className="px-4 py-4 text-sm text-slate-600">
                   {result.HeightCm} cm
                 </td>
+                <td className="px-4 py-4 text-sm text-slate-600">
+                  {formatNullableMeasurement(result.HeadCircumferenceCm, 'cm')}
+                </td>
                 <td className="px-4 py-4 text-sm font-medium text-slate-800">
                   {result.BMI}
                 </td>
@@ -102,6 +107,14 @@ export function GrowthResultsTable({
                 </td>
                 <td className="px-4 py-4">
                   <StatusBadge status={result.BmiStatus} />
+                </td>
+                <td className="px-4 py-4">
+                  <div className="space-y-1.5">
+                    <StatusBadge status={result.HcfaStatus} />
+                    <p className="text-xs font-medium text-slate-500">
+                      Z {formatNullableZScore(result.HcfaZ)}
+                    </p>
+                  </div>
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-2">
@@ -136,10 +149,35 @@ export function GrowthResultsTable({
 }
 
 function needsFollowUp(result: GrowthResult) {
-  return [result.WfhStatus, result.LhfaStatus].some((status) => {
-    const normalized = status.toLowerCase()
-    return normalized.includes('wasted') || normalized.includes('stunted')
+  return [result.WfhStatus, result.LhfaStatus, result.HcfaStatus].some((status) => {
+    const normalized = status?.toLowerCase() ?? ''
+    return (
+      normalized.includes('wasted') ||
+      normalized.includes('stunted') ||
+      normalized.includes('low head circumference') ||
+      normalized.includes('high head circumference')
+    )
   })
+}
+
+function formatNullableMeasurement(value: number | null | undefined, unit: string) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return `${formatNumber(value)} ${unit}`
+}
+
+function formatNullableZScore(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return value.toFixed(2)
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1)
 }
 
 function formatDate(date: string) {

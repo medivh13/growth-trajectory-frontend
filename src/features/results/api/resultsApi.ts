@@ -8,12 +8,15 @@ export type GrowthResult = {
   MeasurementDate: string
   WeightKg: number
   HeightCm: number
+  HeadCircumferenceCm?: number | null
   Notes?: string | null
   BMI: number
+  HcfaZ?: number | null
   WfaStatus: string
   LhfaStatus: string
   WfhStatus: string
   BmiStatus: string
+  HcfaStatus?: string | null
 }
 
 type GetGrowthResultsParams = {

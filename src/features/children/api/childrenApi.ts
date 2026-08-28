@@ -7,6 +7,7 @@ export type CreateChildWithMeasurementPayload = {
   measurement_date: string
   weight_kg: number
   height_cm: number
+  head_circumference_cm?: number | null
 }
 
 export async function createChildWithMeasurement(
@@ -58,6 +59,7 @@ export type CreateMeasurementPayload = {
   measurement_date: string
   weight_kg: number
   height_cm: number
+  head_circumference_cm?: number | null
   paud_id?: number | null
 }
 
@@ -66,11 +68,14 @@ export type MeasurementHistory = {
   measurement_date: string
   weight_kg: number
   height_cm: number
+  head_circumference_cm?: number | null
   notes?: string | null
   bmi: number
+  hcfa_zscore?: number | null
   wfa_status: string
   lhfa_status: string
   wfh_status: string
+  hcfa_status?: string | null
 }
 
 export type ChildMeasurementHistory = {

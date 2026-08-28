@@ -41,6 +41,7 @@ export function MeasurementHistoryPage() {
         first && latest ? latest.weight_kg - first.weight_kg : 0,
       heightChange:
         first && latest ? latest.height_cm - first.height_cm : 0,
+      latestHeadCircumference: latest?.head_circumference_cm ?? null,
       latest,
     }
   }, [history])
@@ -160,7 +161,7 @@ export function MeasurementHistoryPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Measurements" value={progression.total.toString()} />
         <SummaryCard
           label="Weight change"
@@ -169,6 +170,13 @@ export function MeasurementHistoryPage() {
         <SummaryCard
           label="Height change"
           value={`${formatSignedNumber(progression.heightChange)} cm`}
+        />
+        <SummaryCard
+          label="Latest head circ."
+          value={formatNullableMeasurement(
+            progression.latestHeadCircumference,
+            'cm',
+          )}
         />
       </section>
 
@@ -252,8 +260,16 @@ function Timeline({
               {formatDate(item.measurement_date)}
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              {item.weight_kg} kg · {item.height_cm} cm · BMI {formatNumber(item.bmi)}
+              {item.weight_kg} kg · {item.height_cm} cm · Head circ.{' '}
+              {formatNullableMeasurement(item.head_circumference_cm, 'cm')} ·
+              BMI {formatNumber(item.bmi)}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <StatusBadge status={item.hcfa_status} />
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                HCFA Z {formatNullableZScore(item.hcfa_zscore)}
+              </span>
+            </div>
             {item.notes ? (
               <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
                 {item.notes}
@@ -298,20 +314,30 @@ function HistoryTable({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[820px] divide-y divide-slate-200">
+        <table className="min-w-[1040px] divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              {['Date', 'Weight', 'Height', 'BMI', 'Notes', 'WFA', 'LHFA', 'WFH', 'Actions'].map(
-                (heading) => (
-                  <th
-                    key={heading}
-                    scope="col"
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                  >
-                    {heading}
-                  </th>
-                ),
-              )}
+              {[
+                'Date',
+                'Weight',
+                'Height',
+                'Head Circ.',
+                'BMI',
+                'Notes',
+                'WFA',
+                'LHFA',
+                'WFH',
+                'HCFA',
+                'Actions',
+              ].map((heading) => (
+                <th
+                  key={heading}
+                  scope="col"
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  {heading}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -325,6 +351,9 @@ function HistoryTable({
                 </td>
                 <td className="px-4 py-4 text-sm text-slate-600">
                   {item.height_cm} cm
+                </td>
+                <td className="px-4 py-4 text-sm text-slate-600">
+                  {formatNullableMeasurement(item.head_circumference_cm, 'cm')}
                 </td>
                 <td className="px-4 py-4 text-sm text-slate-600">
                   {formatNumber(item.bmi)}
@@ -349,6 +378,14 @@ function HistoryTable({
                   <StatusBadge status={item.wfh_status} />
                 </td>
                 <td className="px-4 py-4">
+                  <div className="space-y-1.5">
+                    <StatusBadge status={item.hcfa_status} />
+                    <p className="text-xs font-medium text-slate-500">
+                      Z {formatNullableZScore(item.hcfa_zscore)}
+                    </p>
+                  </div>
+                </td>
+                <td className="px-4 py-4">
                   <button
                     type="button"
                     onClick={() => onRequestDelete(item)}
@@ -367,9 +404,14 @@ function HistoryTable({
 }
 
 function needsFollowUp(item: MeasurementHistory) {
-  return [item.wfh_status, item.lhfa_status].some((status) => {
-    const normalized = status.toLowerCase()
-    return normalized.includes('wasted') || normalized.includes('stunted')
+  return [item.wfh_status, item.lhfa_status, item.hcfa_status].some((status) => {
+    const normalized = status?.toLowerCase() ?? ''
+    return (
+      normalized.includes('wasted') ||
+      normalized.includes('stunted') ||
+      normalized.includes('low head circumference') ||
+      normalized.includes('high head circumference')
+    )
   })
 }
 
@@ -436,6 +478,22 @@ function formatDate(date: string) {
 
 function formatNumber(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(2)
+}
+
+function formatNullableMeasurement(value: number | null | undefined, unit: string) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return `${formatNumber(value)} ${unit}`
+}
+
+function formatNullableZScore(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return value.toFixed(2)
 }
 
 function formatSignedNumber(value: number) {

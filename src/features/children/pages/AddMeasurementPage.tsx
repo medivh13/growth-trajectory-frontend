@@ -8,6 +8,7 @@ type MeasurementFormState = {
   measurement_date: string
   weight_kg: string
   height_cm: string
+  head_circumference_cm: string
 }
 
 type FormErrors = Partial<Record<keyof MeasurementFormState, string>>
@@ -16,6 +17,7 @@ const initialFormState: MeasurementFormState = {
   measurement_date: '',
   weight_kg: '',
   height_cm: '',
+  head_circumference_cm: '',
 }
 
 export function AddMeasurementPage() {
@@ -70,6 +72,7 @@ export function AddMeasurementPage() {
         measurement_date: form.measurement_date,
         weight_kg: Number(form.weight_kg),
         height_cm: Number(form.height_cm),
+        head_circumference_cm: optionalNumber(form.head_circumference_cm),
         paud_id: paudID ? Number(paudID) : undefined,
       })
       setSuccessMessage('Measurement saved successfully.')
@@ -96,8 +99,9 @@ export function AddMeasurementPage() {
               Record a new growth measurement
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-              Add weight and height for child ID {isChildIDValid ? parsedChildID : '-'}.
-              The backend will compute WHO growth indicators after saving.
+              Add weight, height, and optional head circumference for child ID{' '}
+              {isChildIDValid ? parsedChildID : '-'}. The backend will compute
+              WHO growth indicators after saving.
             </p>
           </div>
           {isChildIDValid ? (
@@ -115,7 +119,7 @@ export function AddMeasurementPage() {
         onSubmit={handleSubmit}
         className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:p-8"
       >
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <FormField
             label="Measurement date"
             htmlFor="measurement_date"
@@ -165,6 +169,26 @@ export function AddMeasurementPage() {
               placeholder="102"
             />
           </FormField>
+
+          <FormField
+            label="Head Circumference (cm)"
+            htmlFor="head_circumference_cm"
+            error={errors.head_circumference_cm}
+            helperText="Optional. Used to calculate head circumference-for-age when available."
+          >
+            <input
+              id="head_circumference_cm"
+              type="number"
+              min="0"
+              step="0.1"
+              value={form.head_circumference_cm}
+              onChange={(event) =>
+                updateField('head_circumference_cm', event.target.value)
+              }
+              className={inputClassName}
+              placeholder="50.2"
+            />
+          </FormField>
         </div>
 
         {submitError ? (
@@ -209,11 +233,13 @@ function FormField({
   label,
   htmlFor,
   error,
+  helperText,
   children,
 }: {
   label: string
   htmlFor: string
   error?: string
+  helperText?: string
   children: React.ReactNode
 }) {
   return (
@@ -222,6 +248,9 @@ function FormField({
         {label}
       </label>
       <div className="mt-2">{children}</div>
+      {helperText ? (
+        <p className="mt-2 text-xs leading-5 text-slate-500">{helperText}</p>
+      ) : null}
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
     </div>
   )
@@ -236,6 +265,12 @@ function validateForm(form: MeasurementFormState) {
 
   validatePositiveNumber(form.weight_kg, 'weight_kg', 'Weight', errors)
   validatePositiveNumber(form.height_cm, 'height_cm', 'Height', errors)
+  validateOptionalPositiveNumber(
+    form.head_circumference_cm,
+    'head_circumference_cm',
+    'Head circumference',
+    errors,
+  )
 
   return errors
 }
@@ -256,6 +291,27 @@ function validatePositiveNumber(
   if (!Number.isFinite(numericValue) || numericValue <= 0) {
     errors[field] = `${label} must be greater than 0.`
   }
+}
+
+function validateOptionalPositiveNumber(
+  value: string,
+  field: keyof FormErrors,
+  label: string,
+  errors: FormErrors,
+) {
+  if (!value) {
+    return
+  }
+
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    errors[field] = `${label} must be greater than 0 when provided.`
+  }
+}
+
+function optionalNumber(value: string) {
+  return value ? Number(value) : null
 }
 
 function getSubmitErrorMessage(error: unknown) {
